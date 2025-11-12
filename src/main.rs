@@ -1,4 +1,6 @@
 pub mod util;
+pub mod generate;
+pub mod solve;
 
 use std::io::Write as _;
 use clap::{Parser, Subcommand};
@@ -26,9 +28,9 @@ enum Commands {
         words: Vec<String>
     },
     Generate {
-        #[arg(short, long, default_value="true")]
+        #[arg(short, long)]
         diagonal: bool,
-        #[arg(short, long, default_value="true")]
+        #[arg(short, long)]
         reverse: bool,
         #[arg(short, long, required=true)]
         width: u8,
@@ -66,7 +68,7 @@ fn main() {
 
             let mut not_found_words = vec![];
             for word in &words {
-                if !find_word_directionally(&grid, word, false) {
+                if !solve::find_word_directionally(&grid, word, false) {
                     not_found_words.push(word.to_string());
                 }
             }
@@ -75,7 +77,7 @@ fn main() {
                 log::info!("Trying to find unfound words in reverse...");
                 let mut still_not_found_words = vec![];
                 for word in not_found_words {
-                    if !find_word_directionally(&grid, &word, true) {
+                    if !solve::find_word_directionally(&grid, &word, true) {
                         still_not_found_words.push(word);
                     }
                 }
@@ -90,123 +92,8 @@ fn main() {
             }
         },
         Commands::Generate { diagonal, reverse, width, height } => {
-            generate_wordsearch(diagonal, reverse, width, height);
+            generate::generate(diagonal, reverse, width, height);
         }
     }
-}
-
-fn generate_wordsearch(allow_diagonal: bool, allow_reverse: bool, width: u8, height: u8) {
-    let mut rng = rand::rng();
-
-    let min_words = ((width as u16 * height as u16) as f32 / 30.0).ceil() as u8;
-    let max_words = ((width as u16 * height as u16) / 10) as u8;
-
-    let word_amount: u8 = rng.random_range(min_words..=max_words);
-
-    let mut used_words: Vec<Word> = vec![];
-
-    for _ in 0..word_amount {
-        let mut word = random_word::get(Lang::En);
-        let place_type: PlaceType = PlaceType::rand();
-
-        while used_words.iter().any(|i| i.word == word.to_owned()) {
-            word = random_word::get(Lang::En);
-        }
-
-        let mut x = rng.random_range(0..width);
-        let mut y = rng.random_range(0..height);
-
-        if place_type.is_horizontal() {
-            while x + word.len() as u8 - 1 < width && used_words.iter().any(|i| i.x == x) {
-                x = rng.random_range(0..width);
-            }
-        }
-
-        if place_type.is_vertical() {
-            while y + word.len() as u8 - 1 < height && used_words.iter().any(|i| i.y == y) {
-                y = rng.random_range(0..height);
-            }
-        }
-
-        if place_type.is_diagonal() {
-            todo!();
-        }
-
-        used_words.push(Word { place_type, word: word.to_owned(), x, y });
-    }
-
-    log::info!("word_amount: {word_amount}, used_words: {used_words:?}");
-}
-
-fn find_word_directionally(grid: &Vec<Vec<char>>, word: &str, reversed: bool) -> bool {
-    let search_word = if reversed {
-        word.chars().rev().collect::<String>()
-    } else {
-        word.to_string()
-    };
-
-    let first_char = search_word.chars().next().unwrap();
-    let indices = calculate_indices(grid, first_char);
-
-    for (r, c) in indices {
-        let directions = vec![
-            (-1, -1, PlaceType::UpperLeftDiagonal),
-            (-1, 0, PlaceType::UpStraight),
-            (-1, 1, PlaceType::UpperRightDiagonal),
-            (0, -1, PlaceType::LeftStraight),
-            (0, 1, PlaceType::RightStraight),
-            (1, -1, PlaceType::LowerLeftDiagonal),
-            (1, 0, PlaceType::DownStraight),
-            (1, 1, PlaceType::LowerRightDiagonal)
-        ];
-
-        for (dr, dc, place_type) in directions {
-            if search_from(&grid, &search_word, r, c, dr, dc) {
-                log::info!("Found word: '{word}' starting at ({c}, {r}) going {place_type:?}{}", if reversed { " (reversed)" } else { "" });
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn search_from(grid: &Vec<Vec<char>>, word: &str, r: usize, c: usize, dr: i32, dc: i32) -> bool {
-    let mut chars = word.chars();
-    let mut r = r as isize;
-    let mut c = c as isize;
-
-    while let Some(char_to_find) = chars.next() {
-        if r < 0 || c < 0 || r as usize >= grid.len() || c as usize >= grid[0].len() {
-            return false;
-        }
-
-        let grid_char = grid[r as usize][c as usize];
-        if grid_char.to_ascii_lowercase() != char_to_find.to_ascii_lowercase() {
-            return false;
-        }
-
-        r += dr as isize;
-        c += dc as isize;
-    }
-
-    true
-}
-
-
-pub fn calculate_indices(grid: &Vec<Vec<char>>, target: char) -> Vec<(usize, usize)> {
-    grid.iter()
-        .enumerate()
-        .flat_map(|(i, row)| {
-            row.iter()
-                .enumerate()
-                .filter_map(move |(j, &c)| {
-                    if c.to_ascii_lowercase() == target.to_ascii_lowercase() {
-                        Some((i, j))
-                    } else {
-                        None
-                    }
-                })
-        })
-    .collect()
 }
 

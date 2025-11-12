@@ -17,40 +17,33 @@ pub enum PlaceType {
 impl PlaceType {
     pub fn is_vertical(&self) -> bool {
         match self {
-            PlaceType::UpperLeftDiagonal => false,
-            PlaceType::UpperRightDiagonal => false,
-            PlaceType::LowerRightDiagonal => false,
-            PlaceType::LowerLeftDiagonal => false,
-            PlaceType::RightStraight => false,
             PlaceType::UpStraight => true,
-            PlaceType::LeftStraight => false,
             PlaceType::DownStraight => true,
+            _ => false
         }
     }
 
     pub fn is_horizontal(&self) -> bool {
         match self {
-            PlaceType::UpperLeftDiagonal => false,
-            PlaceType::UpperRightDiagonal => false,
-            PlaceType::LowerRightDiagonal => false,
-            PlaceType::LowerLeftDiagonal => false,
             PlaceType::RightStraight => true,
-            PlaceType::UpStraight => false,
             PlaceType::LeftStraight => true,
-            PlaceType::DownStraight => false,
+            _ => false
         }
     }
 
     pub fn is_diagonal(&self) -> bool {
         match self {
-            PlaceType::UpperLeftDiagonal => true,
-            PlaceType::UpperRightDiagonal => true,
-            PlaceType::LowerRightDiagonal => true,
-            PlaceType::LowerLeftDiagonal => true,
             PlaceType::RightStraight => false,
             PlaceType::UpStraight => false,
-            PlaceType::LeftStraight => true,
             PlaceType::DownStraight => false,
+            _ => true
+        }
+    }
+
+    pub fn is_reversed(&self) -> bool {
+        match self {
+            PlaceType::LeftStraight => true,
+            _ => false
         }
     }
 }
@@ -62,3 +55,21 @@ pub struct Word {
     pub x: u8,
     pub y: u8,
 }
+
+pub fn calculate_indices(grid: &Vec<Vec<char>>, target: char) -> Vec<(usize, usize)> {
+    grid.iter()
+        .enumerate()
+        .flat_map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .filter_map(move |(j, &c)| {
+                    if c.to_ascii_lowercase() == target.to_ascii_lowercase() {
+                        Some((i, j))
+                    } else {
+                        None
+                    }
+                })
+        })
+    .collect()
+}
+
