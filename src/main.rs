@@ -58,13 +58,29 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Solve { crossword, words } => {
-            log::debug!("crossword: {:#?}, words: {:#?}", crossword, words);
+        Commands::Solve { mut crossword, words } => {
+            crossword.retain(|inner| !inner.is_empty());
+
+            if crossword.is_empty() {
+                log::warn!("Wordsearch is empty... terminating");
+            }
+
+            if let Some(last) = crossword.last_mut() {
+                if last.ends_with(';') {
+                    last.pop(); // removes the last character
+                }
+            } else {
+                panic!("..?");
+            }
 
             let grid: Vec<Vec<char>> = crossword
                 .iter()
                 .map(|line| line.chars().filter(|c| !c.is_whitespace()).collect())
                 .collect();
+
+            let words = words.iter().map(|i| i.chars().filter(|c| !c.is_whitespace()).collect()).collect::<Vec<String>>();
+
+            log::debug!("crossword: {:#?}, words: {:#?}", grid, words);
 
             let mut not_found_words = vec![];
             for word in &words {
@@ -74,21 +90,11 @@ fn main() {
             }
 
             if !not_found_words.is_empty() {
-                log::info!("Trying to find unfound words in reverse...");
-                let mut still_not_found_words = vec![];
                 for word in not_found_words {
-                    if !solve::find_word_directionally(&grid, &word, true) {
-                        still_not_found_words.push(word);
-                    }
+                    log::warn!("Word not found: {}", word);
                 }
-
-                if !still_not_found_words.is_empty() {
-                    for word in still_not_found_words {
-                        log::warn!("Word not found: {}", word);
-                    }
-                    log::warn!("Didn't find every specified word! Terminating...");
-                    std::process::exit(-1);
-                }
+                log::warn!("Didn't find every specified word! Terminating...");
+                std::process::exit(-1);
             }
         },
         Commands::Generate { diagonal, reverse, width, height } => {
