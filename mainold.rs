@@ -5,12 +5,11 @@ use clap::{Parser, Subcommand};
 use enum_derived::Rand;
 use log::Level;
 use rand::Rng;
-use random_word::Lang;
 
-use crate::util::{PlaceType, Word};
+use crate::util::PlaceType;
 
 #[derive(Parser)]
-#[command(author="Illia Zhdanov", version="0.1", about="CrossVault - the *fastest* crossword solver", disable_help_flag=true)]
+#[command(author="Illia Zhdanov", version="0.1", about="CrossVault - the *fastest* crossword solver")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -26,14 +25,14 @@ enum Commands {
         words: Vec<String>
     },
     Generate {
-        #[arg(short, long, default_value="true")]
+        #[arg(short, long)]
         diagonal: bool,
-        #[arg(short, long, default_value="true")]
+        #[arg(short, long)]
         reverse: bool,
-        #[arg(short, long, required=true)]
-        width: u8,
-        #[arg(short, long, required=true)]
-        height: u8
+        #[arg(short, long)]
+        grid_width: u8,
+        #[arg(short, long)]
+        grid_height: u8
     }
 }
 
@@ -89,53 +88,19 @@ fn main() {
                 }
             }
         },
-        Commands::Generate { diagonal, reverse, width, height } => {
-            generate_wordsearch(diagonal, reverse, width, height);
+        Commands::Generate { diagonal, reverse, grid_width, grid_height } => {
+            generate_wordsearch(diagonal, reverse, grid_width, grid_height);
         }
     }
 }
 
-fn generate_wordsearch(allow_diagonal: bool, allow_reverse: bool, width: u8, height: u8) {
+fn generate_wordsearch(allow_diagonal: bool, allow_reverse: bool, grid_width: u8, grid_height: u8) {
     let mut rng = rand::rng();
+    let place_type: PlaceType = PlaceType::rand();
 
-    let min_words = ((width as u16 * height as u16) as f32 / 30.0).ceil() as u8;
-    let max_words = ((width as u16 * height as u16) / 10) as u8;
+    let word_amount: u8 = rng.random_range((grid_width as f32 * grid_height as f32 / 30.0).ceil() as u8..=((grid_width * grid_height) / 10) as u8);
 
-    let word_amount: u8 = rng.random_range(min_words..=max_words);
-
-    let mut used_words: Vec<Word> = vec![];
-
-    for _ in 0..word_amount {
-        let mut word = random_word::get(Lang::En);
-        let place_type: PlaceType = PlaceType::rand();
-
-        while used_words.iter().any(|i| i.word == word.to_owned()) {
-            word = random_word::get(Lang::En);
-        }
-
-        let mut x = rng.random_range(0..width);
-        let mut y = rng.random_range(0..height);
-
-        if place_type.is_horizontal() {
-            while x + word.len() as u8 - 1 < width && used_words.iter().any(|i| i.x == x) {
-                x = rng.random_range(0..width);
-            }
-        }
-
-        if place_type.is_vertical() {
-            while y + word.len() as u8 - 1 < height && used_words.iter().any(|i| i.y == y) {
-                y = rng.random_range(0..height);
-            }
-        }
-
-        if place_type.is_diagonal() {
-            todo!();
-        }
-
-        used_words.push(Word { place_type, word: word.to_owned(), x, y });
-    }
-
-    log::info!("word_amount: {word_amount}, used_words: {used_words:?}");
+    log::info!("word_amount: {word_amount}, place_Type: {place_type:#?}");
 }
 
 fn find_word_directionally(grid: &Vec<Vec<char>>, word: &str, reversed: bool) -> bool {
