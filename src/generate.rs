@@ -156,7 +156,6 @@ pub fn generate_wordsearch_with_words(words: Vec<Word>, width: u8, height: u8) {
     }
 
     log::debug!("words: {words:?}");
-    log::info!("words: {:?}", words.iter().map(|i| i.word.clone()).collect::<Vec<String>>());
 
     fill_empty(&mut ws);
 }
@@ -180,5 +179,5 @@ pub fn fill_empty(ws: &mut Vec<Vec<char>>) {
         .collect::<Vec<_>>()
         .join(";\n");
 
-    log::info!("ws: \n{pretty};");
+    log::info!("ws: \n{pretty}");
 }
