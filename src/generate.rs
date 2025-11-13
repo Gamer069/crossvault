@@ -179,5 +179,5 @@ pub fn fill_empty(ws: &mut Vec<Vec<char>>) {
         .collect::<Vec<_>>()
         .join(";\n");
 
-    log::info!("ws: \n{pretty}");
+    log::info!("Your generated word-search: \n{pretty}");
 }

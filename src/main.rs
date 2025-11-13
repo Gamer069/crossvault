@@ -2,14 +2,12 @@ pub mod util;
 pub mod generate;
 pub mod solve;
 
-use std::io::Write as _;
+use std::{io::Write as _, path::PathBuf, time::Instant};
 use clap::{Parser, Subcommand};
-use enum_derived::Rand;
 use log::Level;
-use rand::Rng;
-use random_word::Lang;
-
-use crate::util::{PlaceType, Word};
+use ocrs::{DecodeMethod, ImageSource, OcrEngine, OcrEngineParams};
+use anyhow::Context;
+use rten::Model;
 
 #[derive(Parser)]
 #[command(author="Illia Zhdanov", version="0.1", about="CrossVault - the *fastest* crossword solver", disable_help_flag=true)]
@@ -32,14 +30,16 @@ enum Commands {
         diagonal: bool,
         #[arg(short, long)]
         reverse: bool,
-        #[arg(short, long, required=true)]
+
         width: u8,
-        #[arg(short, long, required=true)]
         height: u8
-    }
+    },
+    Recognize {
+        file: String,
+    },
 }
 
-fn main() {
+fn main() -> Result<(), anyhow::Error> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(|buf, record| {
             let level_color = match record.level() {
@@ -56,6 +56,8 @@ fn main() {
         .init();
 
     let cli = Cli::parse();
+
+    let now = Instant::now();
 
     match cli.command {
         Commands::Solve { mut crossword, words } => {
@@ -99,7 +101,39 @@ fn main() {
         },
         Commands::Generate { diagonal, reverse, width, height } => {
             generate::generate(diagonal, reverse, width, height);
+        },
+        Commands::Recognize { file } => {
+            let detection_model_path = file_path("text-detection.rten");
+            let rec_model_path = file_path("text-recognition.rten");
+
+            let detection_model = Model::load_file(detection_model_path)?;
+            let recognition_model = Model::load_file(rec_model_path)?;
+
+            let engine = OcrEngine::new(OcrEngineParams {
+                detection_model: Some(detection_model),
+                recognition_model: Some(recognition_model),
+                ..Default::default()
+            })?;
+
+            let img = image::open(file)?;
+            let ocr_img = img.as_rgb8().unwrap_or_else(|| { log::error!("File not found"); std::process::exit(-1); });
+            let src = ImageSource::from_bytes(ocr_img.as_raw(), ocr_img.dimensions())?;
+            let inp = engine.prepare_input(src)?;
+            let txt = engine.get_text(&inp)?.replace(" ", "");
+            let result = txt.lines().enumerate().map(|(i, l)| if i == txt.lines().count()-1 { l.to_string() } else { format!("{};", l) }).collect::<Vec<_>>().join("\n");
+
+            log::info!("Text found in image: {result}");
         }
     }
+
+    log::info!("elapsed: {:#?}", now.elapsed());
+
+    Ok(())
+}
+
+fn file_path(path: &str) -> PathBuf {
+    let mut abs_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    abs_path.push(path);
+    abs_path
 }
 
